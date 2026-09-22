@@ -250,7 +250,20 @@ namespace HardwareScanAgent
             public MotherboardInfo Motherboard = new MotherboardInfo();
             public BiosInfo BIOS = new BiosInfo();
         }
-        #endregion
+                public class MdmInfo
+        {
+            public bool IsMdmDetected = false;
+            public bool IsAutopilotDetected = false;
+            public bool IsAzureAdJoined = false;
+            public bool IsDomainJoined = false;
+            public bool IsComputraceDetected = false;
+            public string AutopilotTenant = "";
+            public string MdmProvider = "";
+            public string MdmDiscoveryUrl = "";
+            public string DomainName = "";
+            public List<string> DetectionReasons = new List<string>();
+        }
+#endregion
 
         [STAThread]
         static void Main(string[] args)
@@ -532,7 +545,56 @@ namespace HardwareScanAgent
             report.AppendLine("    - Ngày cài đặt Windows: " + sys.OS.InstallDate);
             report.AppendLine("    - Thời gian máy đã hoạt động liên tục (Uptime): " + sys.OS.Uptime);
             report.AppendLine();
-            report.AppendLine("==================================================================");
+                        // 11. Quét & Kiểm định Khóa Quản Lý Doanh Nghiệp (MDM / Autopilot / Computrace / Domain)
+            MdmInfo mdm = GetAndVerifyMdm();
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.Write("✔ [11] Khóa Quản Lý (MDM / Autopilot / Computrace): ");
+            Console.ResetColor();
+
+            if (mdm.IsMdmDetected)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("[🚨 CẢNH BÁO NGUY HIỂM] PHÁT HIỆN MÁY BỊ QUẢN LÝ DOANH NGHIỆP / DÍNH MDM!");
+                foreach (string reason in mdm.DetectionReasons)
+                {
+                    Console.WriteLine("    -> " + reason);
+                }
+                Console.WriteLine("    ⚠️ KHUYẾN CÁO: KHÔNG NÊN MUA! Máy thuộc tài sản công ty/trường học.");
+                Console.WriteLine("       Khi cài lại Windows hoặc kết nối mạng, máy có thể bị khóa màn hình từ xa!");
+                Console.ResetColor();
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine("[🛡 SẠCH SẼ 100%] Máy tự do cá nhân (Consumer) - KHÔNG DÍNH MDM!");
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.WriteLine("    - Windows Autopilot     : Sạch (Không bị gán Hardware Hash Cloud)");
+                Console.WriteLine("    - Microsoft Intune MDM  : Sạch (Không có Enrollment doanh nghiệp)");
+                Console.WriteLine("    - Azure AD / Domain Join: Sạch (Máy độc lập Workgroup, không bị quản lý)");
+                Console.WriteLine("    - Computrace BIOS       : Sạch (Không có chip rpcnet theo dõi ngầm)");
+                Console.ResetColor();
+            }
+
+            report.AppendLine("[11] KIỂM ĐỊNH KHÓA QUẢN LÝ DOANH NGHIỆP (MDM / AUTOPILOT / COMPUTRACE):");
+            if (mdm.IsMdmDetected)
+            {
+                report.AppendLine("    - KẾT QUẢ: [🚨 CẢNH BÁO] PHÁT HIỆN MÁY DÍNH MDM / QUẢN LÝ DOANH NGHIỆP!");
+                foreach (string reason in mdm.DetectionReasons)
+                {
+                    report.AppendLine("      + " + reason);
+                }
+                report.AppendLine("    - CẢNH BÁO MUA BÁN: NGUY HIỂM! Có thể bị khóa từ xa bất kỳ lúc nào.");
+            }
+            else
+            {
+                report.AppendLine("    - KẾT QUẢ: [🛡 SẠCH SẼ 100%] Máy tự do cá nhân - KHÔNG DÍNH MDM!");
+                report.AppendLine("      + Windows Autopilot: Sạch (Không có cấu hình Zero Touch)");
+                report.AppendLine("      + Intune / MDM Enrollments: Sạch (Không bị quản trị từ xa)");
+                report.AppendLine("      + Azure AD / Domain Join: Sạch (Không thuộc tổ chức nào)");
+                report.AppendLine("      + Computrace / Absolute Persistence: Sạch (Không bị khóa BIOS)");
+            }
+            report.AppendLine();
+report.AppendLine("==================================================================");
 
             // Tự động sao chép tóm tắt cấu hình vào Clipboard
             try
@@ -549,7 +611,8 @@ namespace HardwareScanAgent
                     "- Màn hình: {18} @ {19}Hz\n" +
                     "- Pin: {20}\n" +
                     "- Camera: {21}\n" +
-                    "- HĐH: {22} (Cài: {23})",
+                    "- HĐH: {22} (Cài: {23})\n" +
+                    "- Khóa MDM: {24}",
                     sys.Manufacturer, sys.Model, sys.SerialNumber,
                     sys.Motherboard.Manufacturer, sys.Motherboard.Product, sys.BIOS.Version,
                     cpu.Name, (cpu.IsSpoofed ? "PHÁT HIỆN FAKE REGISTRY" : "NGUYÊN BẢN CPUID"),
@@ -562,7 +625,8 @@ namespace HardwareScanAgent
                     mon.Resolution, mon.RefreshRate,
                     bat.HasBattery ? string.Format("Chai {0} ({1:N0} chu kỳ sạc)", bat.WearLevel, bat.CycleCount) : "Máy bàn",
                     camStr,
-                    sys.OS.Caption, sys.OS.InstallDate
+                    sys.OS.Caption, sys.OS.InstallDate,
+                    (mdm.IsMdmDetected ? "CẢNH BÁO DÍNH MDM DOANH NGHIỆP" : "SẠCH (Không dính MDM/Autopilot)")
                 );
                 Clipboard.SetText(clipboardText);
             }
@@ -1517,5 +1581,236 @@ namespace HardwareScanAgent
             return info;
         }
         #endregion
-    }
+            static MdmInfo GetAndVerifyMdm()
+        {
+            MdmInfo info = new MdmInfo();
+
+            // 1. Kiểm tra Windows Autopilot Policy Cache trong Registry
+            try
+            {
+                using (RegistryKey apKey = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Provisioning\AutopilotPolicyCache"))
+                {
+                    if (apKey != null)
+                    {
+                        object pAvailable = apKey.GetValue("ProfileAvailable");
+                        if (pAvailable != null && Convert.ToInt32(pAvailable) == 1)
+                        {
+                            info.IsAutopilotDetected = true;
+                            info.IsMdmDetected = true;
+                            info.DetectionReasons.Add("Profile Windows Autopilot đang sẵn sàng áp dụng (ProfileAvailable = 1)");
+                        }
+
+                        object pJson = apKey.GetValue("PolicyJsonCache");
+                        if (pJson != null)
+                        {
+                            string json = pJson.ToString();
+                            if (!string.IsNullOrEmpty(json))
+                            {
+                                int tdIdx = json.IndexOf("CloudAssignedTenantDomain");
+                                if (tdIdx >= 0)
+                                {
+                                    string sub = json.Substring(tdIdx);
+                                    int start = sub.IndexOf(":\"\\\"");
+                                    if (start < 0) start = sub.IndexOf(":\"");
+                                    if (start >= 0)
+                                    {
+                                        int valStart = sub.IndexOf('"', start + 1);
+                                        if (valStart >= 0)
+                                        {
+                                            int valEnd = sub.IndexOf('"', valStart + 1);
+                                            if (valEnd > valStart)
+                                            {
+                                                string domain = sub.Substring(valStart + 1, valEnd - valStart - 1).Replace("\\", "").Trim();
+                                                if (!string.IsNullOrEmpty(domain))
+                                                {
+                                                    info.AutopilotTenant = domain;
+                                                    info.IsAutopilotDetected = true;
+                                                    info.IsMdmDetected = true;
+                                                    info.DetectionReasons.Add("Tổ chức quản lý Autopilot: " + domain);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (json.Contains("\"ForcedEnrollment\":1") || json.Contains("\"ForcedEnrollment\": 1"))
+                                {
+                                    info.IsAutopilotDetected = true;
+                                    info.IsMdmDetected = true;
+                                    info.DetectionReasons.Add("Bắt buộc ghi danh Autopilot khi cài lại Windows (ForcedEnrollment = 1)");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // 2. Kiểm tra Enrollments trong Registry (Intune, AirWatch, Workspace ONE, MobileIron...)
+            try
+            {
+                using (RegistryKey enrollments = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Enrollments"))
+                {
+                    if (enrollments != null)
+                    {
+                        foreach (string subName in enrollments.GetSubKeyNames())
+                        {
+                            if (subName.Equals("Context", StringComparison.OrdinalIgnoreCase) ||
+                                subName.Equals("Status", StringComparison.OrdinalIgnoreCase) ||
+                                subName.Equals("ValidNodePaths", StringComparison.OrdinalIgnoreCase))
+                                continue;
+
+                            using (RegistryKey sub = enrollments.OpenSubKey(subName))
+                            {
+                                if (sub == null) continue;
+
+                                object provObj = sub.GetValue("ProviderID");
+                                object urlObj = sub.GetValue("DiscoveryServiceFullURL");
+                                object upnObj = sub.GetValue("UPN");
+
+                                string prov = provObj != null ? provObj.ToString().Trim() : "";
+                                string url = urlObj != null ? urlObj.ToString().Trim() : "";
+                                string upn = upnObj != null ? upnObj.ToString().Trim() : "";
+
+                                if (!string.IsNullOrEmpty(url) && (url.Contains("manage.microsoft.com") || url.Contains("enrollment") || url.Contains("http")))
+                                {
+                                    info.IsMdmDetected = true;
+                                    info.MdmDiscoveryUrl = url;
+                                    if (!string.IsNullOrEmpty(prov)) info.MdmProvider = prov;
+                                    info.DetectionReasons.Add(string.Format("Đăng ký MDM Server: {0} ({1})", prov, url));
+                                }
+                                else if (!string.IsNullOrEmpty(upn) && upn.Contains("@") && !string.IsNullOrEmpty(prov) &&
+                                         !prov.Equals("Local Authority", StringComparison.OrdinalIgnoreCase) &&
+                                         !prov.Equals("Deploy Authority", StringComparison.OrdinalIgnoreCase) &&
+                                         !prov.Equals("Cloud Authority", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    info.IsMdmDetected = true;
+                                    info.MdmProvider = prov;
+                                    info.DetectionReasons.Add(string.Format("Tài khoản tổ chức gán vào máy: {0} (Nhà cung cấp: {1})", upn, prov));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // 3. Kiểm tra dsregcmd /status (Azure AD Join / Enterprise Join / Domain Join)
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo("dsregcmd.exe", "/status");
+                psi.CreateNoWindow = true;
+                psi.UseShellExecute = false;
+                psi.RedirectStandardOutput = true;
+                using (Process p = Process.Start(psi))
+                {
+                    string output = p.StandardOutput.ReadToEnd();
+                    p.WaitForExit(3000);
+
+                    if (!string.IsNullOrEmpty(output))
+                    {
+                        using (StringReader sr = new StringReader(output))
+                        {
+                            string line;
+                            while ((line = sr.ReadLine()) != null)
+                            {
+                                string trimmed = line.Trim();
+                                if (trimmed.StartsWith("AzureAdJoined", StringComparison.OrdinalIgnoreCase) && trimmed.EndsWith("YES", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    info.IsAzureAdJoined = true;
+                                    info.IsMdmDetected = true;
+                                    info.DetectionReasons.Add("Máy đã gia nhập Azure Active Directory (AzureAdJoined = YES)");
+                                }
+                                else if (trimmed.StartsWith("EnterpriseJoined", StringComparison.OrdinalIgnoreCase) && trimmed.EndsWith("YES", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    info.IsDomainJoined = true;
+                                    info.IsMdmDetected = true;
+                                    info.DetectionReasons.Add("Máy đã gia nhập mạng doanh nghiệp (EnterpriseJoined = YES)");
+                                }
+                                else if (trimmed.StartsWith("DomainJoined", StringComparison.OrdinalIgnoreCase) && trimmed.EndsWith("YES", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    info.IsDomainJoined = true;
+                                    info.IsMdmDetected = true;
+                                    info.DetectionReasons.Add("Máy trực thuộc mạng máy chủ Domain công ty (DomainJoined = YES)");
+                                }
+                                else if (trimmed.StartsWith("TenantName", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    int colon = trimmed.IndexOf(':');
+                                    if (colon >= 0)
+                                    {
+                                        string tName = trimmed.Substring(colon + 1).Trim();
+                                        if (!string.IsNullOrEmpty(tName) && !tName.Equals("NOT SET", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            info.DomainName = tName;
+                                            info.IsMdmDetected = true;
+                                            info.DetectionReasons.Add("Tên doanh nghiệp quản lý (TenantName): " + tName);
+                                        }
+                                    }
+                                }
+                                else if (trimmed.StartsWith("DeviceManagementUrl", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    int colon = trimmed.IndexOf(':');
+                                    if (colon >= 0)
+                                    {
+                                        string dmUrl = trimmed.Substring(colon + 1).Trim();
+                                        if (!string.IsNullOrEmpty(dmUrl) && !dmUrl.Equals("NOT SET", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            info.IsMdmDetected = true;
+                                            info.MdmDiscoveryUrl = dmUrl;
+                                            info.DetectionReasons.Add("Cổng quản lý thiết bị: " + dmUrl);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // 4. Kiểm tra Computrace / Absolute Persistence ngầm trong BIOS
+            try
+            {
+                string sys32 = Environment.GetFolderPath(Environment.SpecialFolder.System);
+                string rpc1 = Path.Combine(sys32, "rpcnet.exe");
+                string rpc2 = Path.Combine(sys32, "rpcnetp.exe");
+                string rpc3 = Path.Combine(sys32, "rpcnet.dll");
+
+                if (File.Exists(rpc1) || File.Exists(rpc2) || File.Exists(rpc3))
+                {
+                    info.IsComputraceDetected = true;
+                    info.IsMdmDetected = true;
+                    info.DetectionReasons.Add("Dính Computrace / Absolute Persistence ngầm trong BIOS (Có thể bị khóa máy từ xa)");
+                }
+
+                using (RegistryKey rpcKey = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\rpcnetp"))
+                {
+                    if (rpcKey != null)
+                    {
+                        info.IsComputraceDetected = true;
+                        info.IsMdmDetected = true;
+                        info.DetectionReasons.Add("Dịch vụ Computrace (rpcnetp service) đang cài đặt trong hệ điều hành");
+                    }
+                }
+            }
+            catch { }
+
+            // 5. Kiểm tra CloudDomainJoin
+            try
+            {
+                using (RegistryKey cdjKey = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\CloudDomainJoin\JoinInfo"))
+                {
+                    if (cdjKey != null && cdjKey.SubKeyCount > 0)
+                    {
+                        info.IsAzureAdJoined = true;
+                        info.IsMdmDetected = true;
+                        info.DetectionReasons.Add("Phát hiện dữ liệu CloudDomainJoin đã liên kết máy với máy chủ đám mây");
+                    }
+                }
+            }
+            catch { }
+
+            return info;
+        }
+}
 }

@@ -1,9 +1,14 @@
-# 🔍 CÔNG CỤ KIỂM TRA PHẦN CỨNG & CHỐNG FAKE MÁY TÍNH (46 KB)
+# 🔍 CÔNG CỤ KIỂM TRA PHẦN CỨNG, CHỐNG FAKE & KIỂM ĐỊNH MDM (53 KB)
 
-Công cụ Portable siêu nhẹ dành cho kỹ thuật viên và người đi mua máy cũ (Laptop / PC cũ) để phát hiện linh kiện bị làm giả hoặc bị tráo đổi thông số.
+Công cụ Portable siêu nhẹ dành cho kỹ thuật viên và người đi mua máy cũ (Laptop / PC cũ) để phát hiện linh kiện bị làm giả hoặc máy dính **Khóa Doanh Nghiệp (MDM / Autopilot)**.
 
 ## 🚀 Tính năng nổi bật
 
+* **🛡️ Kiểm định Khóa Quản Lý MDM & Doanh Nghiệp (NEW):**
+  * Quét **Windows Autopilot Profile & Cloud Hash** (Tránh mua phải máy công ty bị khóa từ xa khi kết nối mạng/cài lại Win).
+  * Quét **Microsoft Intune MDM & Enrollment Doanh nghiệp** (AirWatch, MobileIron, Workspace ONE...).
+  * Quét **Azure Active Directory & Domain Join** (Phát hiện máy trực thuộc quản lý của công ty/trường học).
+  * Quét chip **Computrace / Absolute Persistence** kích hoạt ngầm từ BIOS.
 * **🛡️ Chống Fake CPU (Silicon CPUID):** Dùng trực tiếp mã máy ASM (`CPUID`) truy vấn thẳng vào đế chip bán dẫn của CPU, bóc mẽ ngay lập tức nếu máy bị sửa Registry đổi tên CPU giả.
 * **⚡ Benchmark CPU 500ms:** Đo điểm hiệu năng thực tế để kiểm tra CPU có bị bóp xung / nghẽn cổ chai hay không.
 * **🔋 Soi Pin & Chu kỳ sạc:** Đọc dung lượng gốc, dung lượng sạc đầy hiện tại, tính chính xác **% chai pin** và **Số lần cắm sạc (Cycle Count)**.
@@ -20,10 +25,10 @@ Công cụ Portable siêu nhẹ dành cho kỹ thuật viên và người đi mu
 Khi đi test máy tại cửa hàng hoặc tiệm net, bạn chỉ cần bấm `Windows + R` -> gõ `powershell` -> dán dòng lệnh sau và nhấn **Enter**:
 
 ```powershell
-irm https://raw.githubusercontent.com/NTN493/Check-Hardware/main/check_hard.exe -OutFile $env:TEMP\c.exe; &$env:TEMP\c.exe
+irm tinyurl.com/nhut-check -OutFile $env:TEMP\c.exe; &$env:TEMP\c.exe
 ```
 
-Tool sẽ tải thẳng vào bộ nhớ tạm (46 KB tải trong 1 giây) và khởi chạy ngay lập tức! Khi đóng cửa sổ, hệ thống sẽ tự dọn sạch không để lại dấu vết.
+Tool sẽ tải thẳng vào bộ nhớ tạm (53 KB tải trong 1 giây) và khởi chạy ngay lập tức! Khi đóng cửa sổ, hệ thống sẽ tự dọn sạch không để lại dấu vết.
 
 ---
 
