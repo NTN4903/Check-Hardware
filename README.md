@@ -40,4 +40,4 @@ C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /optimize+ /codepage:650
 ```
 
 ---
-*Phát triển và đóng gói bởi nhutcode - PITVN Community.*
+*Phát triển và đóng gói bởi TanNhut*
