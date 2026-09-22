@@ -1,8 +1,8 @@
 @echo off
 chcp 65001 >nul
-title Biên dịch Công Cụ Kiểm Tra Phần Cứng
+title Bien dich Cong Cu Kiem Tra Phan Cung
 echo ================================================================
-echo        ĐANG BIÊN DỊCH CÔNG CỤ KIỂM TRA PHẦN CỨNG...
+echo    DANG BIEN DICH CONG CU KIEM TRA PHAN CUNG...
 echo ================================================================
 echo.
 
@@ -12,28 +12,23 @@ if not exist %CSC% (
 )
 
 if not exist %CSC% (
-    echo [❌ LỖI] Không tìm thấy trình biên dịch csc.exe trên máy!
-    echo Vui lòng đảm bảo máy tính đã cài đặt .NET Framework.
+    echo [LOI] Khong tim thay trinh bien dich csc.exe!
     pause
     exit /b 1
 )
 
-%CSC% /optimize+ /codepage:65001 /r:System.Management.dll /r:System.Windows.Forms.dll /out:"kiem-tra-phan-cung.exe" "Program.cs"
+%CSC% /optimize+ /codepage:65001 /r:System.Management.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.IO.Compression.FileSystem.dll /out:"check_hard.exe" "Program.cs"
+copy /y "check_hard.exe" "kiem-tra-phan-cung.exe" >nul
 
 if %ERRORLEVEL% EQU 0 (
     echo.
     echo ================================================================
-    echo [✔] BIÊN DỊCH THÀNH CÔNG RỰC RỠ!
-    echo Đã tạo file: kiem-tra-phan-cung.exe
-    echo Bạn có thể nhấp đúp vào file exe vừa tạo để chạy ngay!
+    echo [OK] BIEN DICH THANH CONG!
+    echo Da tao: check_hard.exe va kiem-tra-phan-cung.exe
     echo ================================================================
 ) else (
     echo.
-    echo ================================================================
-    echo [❌] BIÊN DỊCH THẤT BẠI!
-    echo Vui lòng kiểm tra lại cú pháp trong file Program.cs theo thông báo ở trên.
-    echo ================================================================
+    echo [LOI] Bien dich that bai!
 )
-
 echo.
 pause

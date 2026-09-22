@@ -1,8 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
+using System.IO.Compression;
 using System.Management;
+using System.Media;
+using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -687,20 +691,1296 @@ report.AppendLine("=============================================================
             }
 
             Console.WriteLine();
-            Console.Write("Nhấn phím bất kỳ để thoát chương trình...");
-            try
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("✔ Đã hoàn tất quét và kiểm định phần cứng ban đầu!");
+            Console.ResetColor();
+
+            // Mở MENU CÔNG CỤ TEST MÁY CŨ & TẢI TOOL CHUYÊN DỤNG (PITVN)
+            ShowUsedPcSuiteMenu();
+        }
+
+        
+        #region Used PC Test Suite & Downloader Hub
+
+        class SoftwareItem
+        {
+            public string Id;
+            public string Name;
+            public string Description;
+            public string DownloadUrl;
+            public string FileName;
+            public string ExeSearchPattern;
+            public string FolderName;
+            public bool IsExternalOnly;
+            public string ExternalUrl;
+
+            public SoftwareItem(string id, string name, string description, string downloadUrl, string fileName, string folderName, string exeSearchPattern, bool isExternal, string externalUrl)
             {
-                if (!Console.IsInputRedirected)
+                Id = id;
+                Name = name;
+                Description = description;
+                DownloadUrl = downloadUrl;
+                FileName = fileName;
+                FolderName = folderName;
+                ExeSearchPattern = exeSearchPattern;
+                IsExternalOnly = isExternal;
+                ExternalUrl = externalUrl;
+            }
+        }
+
+        static void ShowUsedPcSuiteMenu()
+        {
+            while (true)
+            {
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine("╔═══════════════════════════════════════════════════════════════════════╗");
+                Console.WriteLine("║        BỘ CÔNG CỤ TEST MÁY CŨ & TẢI TOOL CHUYÊN SÂU (PITVN)           ║");
+                Console.WriteLine("╚═══════════════════════════════════════════════════════════════════════╝");
+                Console.ResetColor();
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("  [1] 📺 Kiểm tra Màn hình (Test Điểm chết, Điểm sáng, Hở sáng IPS Bleed)");
+                Console.WriteLine("  [2] ⌨️  Kiểm tra Bàn phím trực quan (Keyboard Tester - Bấm test kẹt/liệt)");
+                Console.WriteLine("  [3] 🔥 Thử tải CPU Stress Test & Kiểm tra Tản nhiệt (15s/30s Throttling)");
+                Console.WriteLine("  [4] 🚀 Đo tốc độ Đọc/Ghi thực tế Ổ cứng (Sequential Read/Write MB/s)");
+                Console.WriteLine("  [5] 🔊 Kiểm tra Loa Trái / Phải (Stereo Speaker Channel Isolation)");
+                Console.WriteLine("  [6] 🔋 Kiểm tra Tốc độ Nạp/Xả Pin & Công suất Sạc (Battery Charge Rate)");
+                Console.WriteLine("  [7] 📥 Tải & Chạy Phần mềm Chuyên dụng (FurMark, HWMonitor, Cinebench...)");
+                Console.WriteLine("  [8] 📋 Quét lại toàn bộ Phần cứng & Copy tóm tắt vào Clipboard");
+                Console.WriteLine("  [0] ❌ Thoát chương trình");
+                Console.ResetColor();
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write("👉 Vui lòng chọn chức năng [0-8]: ");
+                Console.ResetColor();
+
+                string choice = Console.ReadLine();
+                if (choice == null) break;
+                choice = choice.Trim();
+
+                if (choice == "0" || choice.Equals("exit", StringComparison.OrdinalIgnoreCase))
                 {
-                    Console.ReadKey(true);
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine("\nCảm ơn bạn đã sử dụng công cụ! Chúc bạn chọn được chiếc máy tính ưng ý.");
+                    Console.ResetColor();
+                    break;
+                }
+
+                switch (choice)
+                {
+                    case "1":
+                        RunScreenDeadPixelTest();
+                        break;
+                    case "2":
+                        RunVisualKeyboardTest();
+                        break;
+                    case "3":
+                        RunCpuStressAndThrottlingTest();
+                        break;
+                    case "4":
+                        RunDiskBenchmarkTest();
+                        break;
+                    case "5":
+                        RunAudioStereoTest();
+                        break;
+                    case "6":
+                        RunBatteryChargeTest();
+                        break;
+                    case "7":
+                        ShowSoftwareDownloaderMenu();
+                        break;
+                    case "8":
+                        Console.Clear();
+                        Main(new string[0]);
+                        return;
+                    default:
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("⚠ Lựa chọn không hợp lệ. Vui lòng nhập từ 0 đến 8.");
+                        Console.ResetColor();
+                        break;
+                }
+            }
+        }
+
+        static void RunScreenDeadPixelTest()
+        {
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("══════════════════════════════════════════════════════════════════");
+            Console.WriteLine("    KIỂM TRA MÀN HÌNH (DEAD PIXEL & BACKLIGHT BLEED TEST)");
+            Console.WriteLine("══════════════════════════════════════════════════════════════════");
+            Console.ResetColor();
+            Console.WriteLine("• Màn hình sẽ chuyển sang chế độ TOÀN MÀN HÌNH với các màu thuần khiết:");
+            Console.WriteLine("  - Màu TRẮNG/SÁNG: Soi điểm chết đen (Dead Pixel), đốm ố lót phản quang, bụi.");
+            Console.WriteLine("  - Màu ĐEN: Soi hở sáng 4 góc/viền (IPS Backlight Bleed), điểm kẹt sáng (Stuck Pixel).");
+            Console.WriteLine("  - Màu ĐỎ / XANH LÁ / XANH DƯƠNG: Soi chết điểm ảnh phụ (Subpixel).");
+            Console.WriteLine("• Thao tác khi đang kiểm tra:");
+            Console.WriteLine("  - [Click chuột trái] hoặc [Phím SPACE] / [Mũi tên phải]: Đổi sang màu tiếp theo.");
+            Console.WriteLine("  - [Click chuột phải] hoặc [Mũi tên trái]: Quay lại màu trước.");
+            Console.WriteLine("  - [Phím ESC]: Thoát và trở về Menu.");
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Write("👉 Nhấn Enter để BẮT ĐẦU test ngay...");
+            Console.ResetColor();
+            Console.ReadLine();
+
+            Color[] colors = new Color[] {
+                Color.White,
+                Color.Black,
+                Color.Red,
+                Color.FromArgb(0, 255, 0),     // Pure Green
+                Color.FromArgb(0, 0, 255),     // Pure Blue
+                Color.Yellow,
+                Color.Magenta,
+                Color.Cyan,
+                Color.FromArgb(128, 128, 128)  // Medium Gray
+            };
+
+            string[] colorNames = new string[] {
+                "TRẮNG (Soi điểm chết đen, đốm ố lót, bụi phản quang)",
+                "ĐEN (Soi hở sáng viền IPS bleed, điểm kẹt sáng)",
+                "ĐỎ (Red Subpixel)",
+                "XANH LÁ (Green Subpixel)",
+                "XANH DƯƠNG (Blue Subpixel)",
+                "VÀNG (Yellow)",
+                "HỒNG (Magenta)",
+                "XANH LƠ (Cyan)",
+                "XÁM (Độ đồng đều tấm nền)"
+            };
+
+            int currentIndex = 0;
+
+            using (Form form = new Form())
+            {
+                form.FormBorderStyle = FormBorderStyle.None;
+                form.WindowState = FormWindowState.Maximized;
+                form.TopMost = true;
+                form.BackColor = colors[currentIndex];
+                form.Cursor = Cursors.Hand;
+                form.KeyPreview = true;
+
+                Label lblBanner = new Label();
+                lblBanner.AutoSize = false;
+                lblBanner.Height = 44;
+                lblBanner.Dock = DockStyle.Bottom;
+                lblBanner.TextAlign = ContentAlignment.MiddleCenter;
+                lblBanner.Font = new Font("Segoe UI", 12f, FontStyle.Bold);
+                lblBanner.BackColor = Color.FromArgb(170, 20, 20, 20);
+                lblBanner.ForeColor = Color.White;
+                lblBanner.Text = string.Format("[{0}/{1}] {2} | Click / Space: Đổi màu | ESC: Thoát", currentIndex + 1, colors.Length, colorNames[currentIndex]);
+                form.Controls.Add(lblBanner);
+
+                System.Windows.Forms.Timer fadeTimer = new System.Windows.Forms.Timer();
+                fadeTimer.Interval = 2800;
+                fadeTimer.Tick += delegate {
+                    lblBanner.Visible = false;
+                    fadeTimer.Stop();
+                };
+                fadeTimer.Start();
+
+                Action applyColor = delegate {
+                    form.BackColor = colors[currentIndex];
+                    lblBanner.Text = string.Format("[{0}/{1}] {2} | Click / Space: Đổi màu | ESC: Thoát", currentIndex + 1, colors.Length, colorNames[currentIndex]);
+                    lblBanner.Visible = true;
+                    fadeTimer.Stop();
+                    fadeTimer.Start();
+                };
+
+                form.MouseClick += delegate(object sender, MouseEventArgs e) {
+                    if (e.Button == MouseButtons.Right)
+                    {
+                        currentIndex = (currentIndex - 1 + colors.Length) % colors.Length;
+                    }
+                    else
+                    {
+                        currentIndex = (currentIndex + 1) % colors.Length;
+                    }
+                    applyColor();
+                };
+
+                form.KeyDown += delegate(object sender, KeyEventArgs e) {
+                    if (e.KeyCode == Keys.Escape)
+                    {
+                        form.Close();
+                    }
+                    else if (e.KeyCode == Keys.Space || e.KeyCode == Keys.Right || e.KeyCode == Keys.Down || e.KeyCode == Keys.PageDown)
+                    {
+                        currentIndex = (currentIndex + 1) % colors.Length;
+                        applyColor();
+                    }
+                    else if (e.KeyCode == Keys.Left || e.KeyCode == Keys.Up || e.KeyCode == Keys.PageUp)
+                    {
+                        currentIndex = (currentIndex - 1 + colors.Length) % colors.Length;
+                        applyColor();
+                    }
+                };
+
+                form.ShowDialog();
+            }
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("✔ Đã hoàn tất kiểm tra màn hình!");
+            Console.ResetColor();
+        }
+
+        class KeyDef
+        {
+            public Keys Key;
+            public string Label;
+            public int X;
+            public int Y;
+            public int Width;
+            public int Height;
+
+            public KeyDef(Keys key, string label, int x, int y, int width, int height)
+            {
+                Key = key;
+                Label = label;
+                X = x;
+                Y = y;
+                Width = width;
+                Height = height;
+            }
+        }
+
+        static void RunVisualKeyboardTest()
+        {
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("══════════════════════════════════════════════════════════════════");
+            Console.WriteLine("    KIỂM TRA BÀN PHÍM TRỰC QUAN (VISUAL KEYBOARD TESTER)");
+            Console.WriteLine("══════════════════════════════════════════════════════════════════");
+            Console.ResetColor();
+            Console.WriteLine("• Cửa sổ kiểm tra bàn phím sẽ mở ra.");
+            Console.WriteLine("• Hướng dẫn test:");
+            Console.WriteLine("  - Dùng ngón tay lướt lần lượt qua từng hàng phím trên laptop/bàn phím.");
+            Console.WriteLine("  - Phím nào nhận diện TỐT sẽ lập tức ĐỔI SANG MÀU XANH LÁ.");
+            Console.WriteLine("  - Nếu bấm phím nào mà KHÔNG ĐỔI MÀU -> Phím đó bị liệt hoặc kẹt!");
+            Console.WriteLine("• Bấm ESC trên bàn phím hoặc nhấn nút Đóng để quay về Menu.");
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Write("👉 Nhấn Enter để BẮT ĐẦU test bàn phím...");
+            Console.ResetColor();
+            Console.ReadLine();
+
+            using (Form form = new Form())
+            {
+                form.Text = "Trình Kiểm Tra Bàn Phím Trực Quan (Keyboard Tester) - PITVN Community";
+                form.Size = new Size(1080, 520);
+                form.StartPosition = FormStartPosition.CenterScreen;
+                form.FormBorderStyle = FormBorderStyle.FixedDialog;
+                form.MaximizeBox = false;
+                form.BackColor = Color.FromArgb(24, 24, 28);
+                form.KeyPreview = true;
+
+                // Panel Header
+                Panel topPanel = new Panel();
+                topPanel.Dock = DockStyle.Top;
+                topPanel.Height = 70;
+                topPanel.BackColor = Color.FromArgb(32, 32, 38);
+                form.Controls.Add(topPanel);
+
+                Label lblTitle = new Label();
+                lblTitle.Text = "⌨️ TRÌNH TEST BÀN PHÍM - BẤM PHÍM BẤT KỲ ĐỂ KIỂM TRA";
+                lblTitle.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
+                lblTitle.ForeColor = Color.FromArgb(0, 210, 255);
+                lblTitle.Location = new Point(16, 10);
+                lblTitle.AutoSize = true;
+                topPanel.Controls.Add(lblTitle);
+
+                Label lblStatus = new Label();
+                lblStatus.Text = "Đã kiểm tra: 0 phím | Phím vừa bấm: [Chưa có] | Mã phím: 0";
+                lblStatus.Font = new Font("Segoe UI", 10.5f, FontStyle.Regular);
+                lblStatus.ForeColor = Color.White;
+                lblStatus.Location = new Point(16, 38);
+                lblStatus.AutoSize = true;
+                topPanel.Controls.Add(lblStatus);
+
+                Button btnReset = new Button();
+                btnReset.Text = "🔄 Làm mới (Reset)";
+                btnReset.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
+                btnReset.ForeColor = Color.White;
+                btnReset.BackColor = Color.FromArgb(50, 50, 60);
+                btnReset.FlatStyle = FlatStyle.Flat;
+                btnReset.Size = new Size(140, 32);
+                btnReset.Location = new Point(760, 20);
+                topPanel.Controls.Add(btnReset);
+
+                Button btnClose = new Button();
+                btnClose.Text = "❌ Đóng (ESC)";
+                btnClose.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
+                btnClose.ForeColor = Color.White;
+                btnClose.BackColor = Color.FromArgb(180, 40, 40);
+                btnClose.FlatStyle = FlatStyle.Flat;
+                btnClose.Size = new Size(130, 32);
+                btnClose.Location = new Point(915, 20);
+                topPanel.Controls.Add(btnClose);
+
+                Panel kbPanel = new Panel();
+                kbPanel.Location = new Point(16, 85);
+                kbPanel.Size = new Size(1030, 380);
+                kbPanel.BackColor = Color.FromArgb(18, 18, 22);
+                form.Controls.Add(kbPanel);
+
+                List<KeyDef> defs = new List<KeyDef>();
+                int kw = 48; // standard key width
+                int kh = 42; // standard key height
+                int gap = 4;
+
+                // Hàng 0: Esc, F1-F12, PrtSc, Del
+                defs.Add(new KeyDef(Keys.Escape, "Esc", 10, 10, kw, kh));
+                int xF = 10 + kw + 15;
+                for (int i = 1; i <= 12; i++)
+                {
+                    Keys fKey = (Keys)Enum.Parse(typeof(Keys), "F" + i);
+                    defs.Add(new KeyDef(fKey, "F" + i, xF, 10, kw, kh));
+                    xF += kw + gap;
+                    if (i == 4 || i == 8) xF += 10;
+                }
+                defs.Add(new KeyDef(Keys.PrintScreen, "PrtSc", xF + 15, 10, 56, kh));
+                defs.Add(new KeyDef(Keys.Delete, "Del", xF + 15 + 56 + gap, 10, 56, kh));
+
+                // Hàng 1: ~, 1-0, -, =, Backspace
+                int y1 = 10 + kh + gap + 10;
+                int x1 = 10;
+                defs.Add(new KeyDef(Keys.Oemtilde, "~", x1, y1, kw, kh)); x1 += kw + gap;
+                defs.Add(new KeyDef(Keys.D1, "1", x1, y1, kw, kh)); x1 += kw + gap;
+                defs.Add(new KeyDef(Keys.D2, "2", x1, y1, kw, kh)); x1 += kw + gap;
+                defs.Add(new KeyDef(Keys.D3, "3", x1, y1, kw, kh)); x1 += kw + gap;
+                defs.Add(new KeyDef(Keys.D4, "4", x1, y1, kw, kh)); x1 += kw + gap;
+                defs.Add(new KeyDef(Keys.D5, "5", x1, y1, kw, kh)); x1 += kw + gap;
+                defs.Add(new KeyDef(Keys.D6, "6", x1, y1, kw, kh)); x1 += kw + gap;
+                defs.Add(new KeyDef(Keys.D7, "7", x1, y1, kw, kh)); x1 += kw + gap;
+                defs.Add(new KeyDef(Keys.D8, "8", x1, y1, kw, kh)); x1 += kw + gap;
+                defs.Add(new KeyDef(Keys.D9, "9", x1, y1, kw, kh)); x1 += kw + gap;
+                defs.Add(new KeyDef(Keys.D0, "0", x1, y1, kw, kh)); x1 += kw + gap;
+                defs.Add(new KeyDef(Keys.OemMinus, "-", x1, y1, kw, kh)); x1 += kw + gap;
+                defs.Add(new KeyDef(Keys.Oemplus, "=", x1, y1, kw, kh)); x1 += kw + gap;
+                defs.Add(new KeyDef(Keys.Back, "Backspace", x1, y1, 100, kh));
+
+                // Hàng 2: Tab, Q..P, [, ], \
+                int y2 = y1 + kh + gap;
+                int x2 = 10;
+                defs.Add(new KeyDef(Keys.Tab, "Tab", x2, y2, 70, kh)); x2 += 70 + gap;
+                string row2Keys = "QWERTYUIOP";
+                for (int i = 0; i < row2Keys.Length; i++)
+                {
+                    Keys k = (Keys)Enum.Parse(typeof(Keys), row2Keys[i].ToString());
+                    defs.Add(new KeyDef(k, row2Keys[i].ToString(), x2, y2, kw, kh)); x2 += kw + gap;
+                }
+                defs.Add(new KeyDef(Keys.OemOpenBrackets, "[", x2, y2, kw, kh)); x2 += kw + gap;
+                defs.Add(new KeyDef(Keys.Oem6, "]", x2, y2, kw, kh)); x2 += kw + gap;
+                defs.Add(new KeyDef(Keys.Oem5, "\\", x2, y2, 80, kh));
+
+                // Hàng 3: Caps, A..L, ;, ', Enter
+                int y3 = y2 + kh + gap;
+                int x3 = 10;
+                defs.Add(new KeyDef(Keys.Capital, "Caps", x3, y3, 80, kh)); x3 += 80 + gap;
+                string row3Keys = "ASDFGHJKL";
+                for (int i = 0; i < row3Keys.Length; i++)
+                {
+                    Keys k = (Keys)Enum.Parse(typeof(Keys), row3Keys[i].ToString());
+                    defs.Add(new KeyDef(k, row3Keys[i].ToString(), x3, y3, kw, kh)); x3 += kw + gap;
+                }
+                defs.Add(new KeyDef(Keys.Oem1, ";", x3, y3, kw, kh)); x3 += kw + gap;
+                defs.Add(new KeyDef(Keys.Oem7, "'", x3, y3, kw, kh)); x3 += kw + gap;
+                defs.Add(new KeyDef(Keys.Return, "Enter", x3, y3, 122, kh));
+
+                // Hàng 4: Shift L, Z..M, ,, ., /, Shift R, Up
+                int y4 = y3 + kh + gap;
+                int x4 = 10;
+                defs.Add(new KeyDef(Keys.ShiftKey, "Shift", x4, y4, 105, kh)); x4 += 105 + gap;
+                string row4Keys = "ZXCVBNM";
+                for (int i = 0; i < row4Keys.Length; i++)
+                {
+                    Keys k = (Keys)Enum.Parse(typeof(Keys), row4Keys[i].ToString());
+                    defs.Add(new KeyDef(k, row4Keys[i].ToString(), x4, y4, kw, kh)); x4 += kw + gap;
+                }
+                defs.Add(new KeyDef(Keys.Oemcomma, ",", x4, y4, kw, kh)); x4 += kw + gap;
+                defs.Add(new KeyDef(Keys.OemPeriod, ".", x4, y4, kw, kh)); x4 += kw + gap;
+                defs.Add(new KeyDef(Keys.OemQuestion, "/", x4, y4, kw, kh)); x4 += kw + gap;
+                defs.Add(new KeyDef(Keys.RShiftKey, "Shift", x4, y4, 98, kh)); x4 += 98 + gap + 15;
+                defs.Add(new KeyDef(Keys.Up, "▲", x4 + kw + gap, y4, kw, kh));
+
+                // Hàng 5: Ctrl, Win, Alt, Space, Alt, Win/Fn, Ctrl, Left, Down, Right
+                int y5 = y4 + kh + gap;
+                int x5 = 10;
+                defs.Add(new KeyDef(Keys.ControlKey, "Ctrl", x5, y5, 60, kh)); x5 += 60 + gap;
+                defs.Add(new KeyDef(Keys.LWin, "Win", x5, y5, 50, kh)); x5 += 50 + gap;
+                defs.Add(new KeyDef(Keys.Menu, "Alt", x5, y5, 54, kh)); x5 += 54 + gap;
+                defs.Add(new KeyDef(Keys.Space, "Space", x5, y5, 290, kh)); x5 += 290 + gap;
+                defs.Add(new KeyDef(Keys.RMenu, "Alt", x5, y5, 54, kh)); x5 += 54 + gap;
+                defs.Add(new KeyDef(Keys.Apps, "Fn/Menu", x5, y5, 60, kh)); x5 += 60 + gap;
+                defs.Add(new KeyDef(Keys.RControlKey, "Ctrl", x5, y5, 60, kh)); x5 += 60 + gap + 15;
+                defs.Add(new KeyDef(Keys.Left, "◄", x5, y5, kw, kh)); x5 += kw + gap;
+                defs.Add(new KeyDef(Keys.Down, "▼", x5, y5, kw, kh)); x5 += kw + gap;
+                defs.Add(new KeyDef(Keys.Right, "►", x5, y5, kw, kh));
+
+                Dictionary<Keys, Button> keyButtons = new Dictionary<Keys, Button>();
+                List<Button> allButtons = new List<Button>();
+
+                foreach (KeyDef kd in defs)
+                {
+                    Button btn = new Button();
+                    btn.Text = kd.Label;
+                    btn.Location = new Point(kd.X, kd.Y);
+                    btn.Size = new Size(kd.Width, kd.Height);
+                    btn.FlatStyle = FlatStyle.Flat;
+                    btn.FlatAppearance.BorderSize = 1;
+                    btn.FlatAppearance.BorderColor = Color.FromArgb(60, 60, 70);
+                    btn.BackColor = Color.FromArgb(38, 38, 46);
+                    btn.ForeColor = Color.White;
+                    btn.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
+                    btn.TabStop = false;
+                    kbPanel.Controls.Add(btn);
+
+                    if (!keyButtons.ContainsKey(kd.Key))
+                    {
+                        keyButtons.Add(kd.Key, btn);
+                    }
+                    allButtons.Add(btn);
+                }
+
+                HashSet<Keys> testedKeys = new HashSet<Keys>();
+
+                Action resetAll = delegate {
+                    testedKeys.Clear();
+                    foreach (Button b in allButtons)
+                    {
+                        b.BackColor = Color.FromArgb(38, 38, 46);
+                        b.ForeColor = Color.White;
+                        b.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
+                    }
+                    lblStatus.Text = "Đã kiểm tra: 0 phím | Phím vừa bấm: [Chưa có] | Mã phím: 0";
+                };
+
+                btnReset.Click += delegate { resetAll(); };
+                btnClose.Click += delegate { form.Close(); };
+
+                form.KeyDown += delegate(object sender, KeyEventArgs e)
+                {
+                    testedKeys.Add(e.KeyCode);
+                    Button b;
+                    if (keyButtons.TryGetValue(e.KeyCode, out b))
+                    {
+                        b.BackColor = Color.FromArgb(46, 204, 113); // Emerald Green
+                        b.ForeColor = Color.Black;
+                        b.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
+                    }
+                    else if (e.KeyCode == Keys.ShiftKey)
+                    {
+                        if (keyButtons.TryGetValue(Keys.ShiftKey, out b))
+                        {
+                            b.BackColor = Color.FromArgb(46, 204, 113);
+                            b.ForeColor = Color.Black;
+                        }
+                    }
+                    else if (e.KeyCode == Keys.ControlKey)
+                    {
+                        if (keyButtons.TryGetValue(Keys.ControlKey, out b))
+                        {
+                            b.BackColor = Color.FromArgb(46, 204, 113);
+                            b.ForeColor = Color.Black;
+                        }
+                    }
+                    else if (e.KeyCode == Keys.Menu)
+                    {
+                        if (keyButtons.TryGetValue(Keys.Menu, out b))
+                        {
+                            b.BackColor = Color.FromArgb(46, 204, 113);
+                            b.ForeColor = Color.Black;
+                        }
+                    }
+
+                    lblStatus.Text = string.Format("Đã kiểm tra: {0} phím | Phím vừa bấm: [{1}] | Mã phím: {2}", testedKeys.Count, e.KeyCode, (int)e.KeyCode);
+                    e.Handled = true;
+                };
+
+                form.ShowDialog();
+            }
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("✔ Đã hoàn tất kiểm tra bàn phím!");
+            Console.ResetColor();
+        }
+
+        static void RunCpuStressAndThrottlingTest()
+        {
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("══════════════════════════════════════════════════════════════════");
+            Console.WriteLine("    THỬ TẢI CPU (STRESS TEST) & ĐO HIỆN TƯỢNG BÓP XUNG (THROTTLING)");
+            Console.WriteLine("══════════════════════════════════════════════════════════════════");
+            Console.ResetColor();
+            Console.WriteLine("• Thử tải 100% tất cả các nhân/luồng CPU (" + Environment.ProcessorCount + " luồng tính toán).");
+            Console.WriteLine("• Giúp phát hiện:");
+            Console.WriteLine("  - Quạt tản nhiệt có quay mạnh khi tải nặng không?");
+            Console.WriteLine("  - Keo tản nhiệt có bị khô cứng gây quá nhiệt sụt giảm hiệu năng không?");
+            Console.WriteLine("  - Máy có bị treo, màn hình xanh (BSOD) hoặc sập nguồn khi tải tối đa không?");
+            Console.WriteLine();
+            Console.Write("👉 Chọn thời gian thử tải [1] 15 giây (Nhanh) | [2] 30 giây (Đầy đủ) [Mặc định 1]: ");
+            string timeChoice = Console.ReadLine();
+            int totalSeconds = (timeChoice != null && timeChoice.Trim() == "2") ? 30 : 15;
+
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(string.Format("⏳ Đang khởi động {0} luồng xử lý tính toán 100% CPU trong {1} giây...", Environment.ProcessorCount, totalSeconds));
+            Console.ResetColor();
+
+            bool isRunning = true;
+            long totalOps = 0;
+            List<Thread> workers = new List<Thread>();
+            int numThreads = Environment.ProcessorCount;
+
+            for (int t = 0; t < numThreads; t++)
+            {
+                Thread th = new Thread(delegate()
+                {
+                    double v = 123456.789;
+                    long localOps = 0;
+                    while (isRunning)
+                    {
+                        for (int k = 0; k < 10000; k++)
+                        {
+                            v = Math.Sqrt(v * 1.000001 + 0.123);
+                        }
+                        localOps += 10000;
+                        if (localOps >= 50000)
+                        {
+                            Interlocked.Add(ref totalOps, localOps);
+                            localOps = 0;
+                        }
+                    }
+                });
+                th.IsBackground = true;
+                th.Start();
+                workers.Add(th);
+            }
+
+            Stopwatch sw = Stopwatch.StartNew();
+            long lastOps = 0;
+            long lastTimeMs = 0;
+            List<double> sampleRates = new List<double>();
+
+            while (sw.ElapsedMilliseconds < totalSeconds * 1000)
+            {
+                Thread.Sleep(500);
+                long currentOps = Interlocked.Read(ref totalOps);
+                long currentTimeMs = sw.ElapsedMilliseconds;
+
+                long deltaOps = currentOps - lastOps;
+                long deltaTimeMs = currentTimeMs - lastTimeMs;
+                if (deltaTimeMs > 0)
+                {
+                    double ratePerSec = (double)deltaOps / (deltaTimeMs / 1000.0);
+                    sampleRates.Add(ratePerSec);
+                }
+
+                lastOps = currentOps;
+                lastTimeMs = currentTimeMs;
+
+                double percent = (double)currentTimeMs / (totalSeconds * 1000.0) * 100.0;
+                if (percent > 100.0) percent = 100.0;
+                int barWidth = 25;
+                int filled = (int)(percent / 100.0 * barWidth);
+                if (filled > barWidth) filled = barWidth;
+                string bar = new string('█', filled) + new string('░', barWidth - filled);
+
+                Console.Write(string.Format("\r   [{0}] {1,5:F1}% | {2,4:F1}s / {3}s | Tải: 100% ({4} Luồng)", bar, percent, currentTimeMs / 1000.0, totalSeconds, numThreads));
+            }
+
+            isRunning = false;
+            foreach (Thread th in workers) th.Join(500);
+            sw.Stop();
+            Console.WriteLine();
+            Console.WriteLine();
+
+            // Tính toán mức sụt giảm hiệu năng Throttling
+            if (sampleRates.Count >= 4)
+            {
+                int sampleWindow = Math.Min(4, sampleRates.Count / 2);
+                double initialSum = 0;
+                for (int i = 0; i < sampleWindow; i++) initialSum += sampleRates[i];
+                double initialAvg = initialSum / sampleWindow;
+
+                double finalSum = 0;
+                for (int i = sampleRates.Count - sampleWindow; i < sampleRates.Count; i++) finalSum += sampleRates[i];
+                double finalAvg = finalSum / sampleWindow;
+
+                double retentionRatio = (initialAvg > 0) ? (finalAvg / initialAvg) * 100.0 : 100.0;
+                double dropPercent = 100.0 - retentionRatio;
+
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine("══════════════════════════════════════════════════════════════════");
+                Console.WriteLine("        KẾT QUẢ ĐÁNH GIÁ TẢN NHIỆT & THROTTLING CPU");
+                Console.WriteLine("══════════════════════════════════════════════════════════════════");
+                Console.ResetColor();
+                Console.WriteLine(string.Format("• Tốc độ tính toán ban đầu (Khi máy mát)  : {0:N0} phép tính/s", initialAvg));
+                Console.WriteLine(string.Format("• Tốc độ tính toán sau {0}s (Khi máy nóng) : {1:N0} phép tính/s", totalSeconds, finalAvg));
+                Console.WriteLine(string.Format("• Hệ số duy trì hiệu năng ổn định       : {0:F1}% (Sụt giảm: {1:F1}%)", retentionRatio, Math.Max(0, dropPercent)));
+                Console.WriteLine();
+
+                if (retentionRatio >= 93.0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("👉 [ĐÁNH GIÁ: XUẤT SẮC] Hệ thống tản nhiệt hoạt động cực kỳ hoàn hảo!");
+                    Console.WriteLine("   CPU duy trì xung nhịp ổn định " + retentionRatio.ToString("F1") + "%, không hề bị bóp xung (Thermal Throttling).");
+                    Console.ResetColor();
+                }
+                else if (retentionRatio >= 85.0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("👉 [ĐÁNH GIÁ: BÌNH THƯỜNG] Hệ thống tản nhiệt ở mức chấp nhận được.");
+                    Console.WriteLine("   CPU có giảm nhẹ " + dropPercent.ToString("F1") + "% xung nhịp khi tải nặng liên tục (Phổ biến ở laptop mỏng nhẹ).");
+                    Console.ResetColor();
                 }
                 else
                 {
-                    Console.ReadLine();
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("👉 [CẢNH BÁO NGUY HIỂM] PHÁT HIỆN BÓP XUNG NẶNG (THERMAL THROTTLING)!");
+                    Console.WriteLine("   Hiệu năng sụt giảm tới " + dropPercent.ToString("F1") + "% sau " + totalSeconds + " giây tải nặng.");
+                    Console.WriteLine("   ⚠ NGUYÊN NHÂN: Keo tản nhiệt đã khô cứng hoặc quạt bám bụi dày / quạt chết.");
+                    Console.WriteLine("   Khuyến cáo: Cần yêu cầu cửa hàng vệ sinh tra keo tản nhiệt xịn trước khi mua!");
+                    Console.ResetColor();
                 }
             }
-            catch { }
+            Console.WriteLine();
         }
+
+        static void RunDiskBenchmarkTest()
+        {
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("══════════════════════════════════════════════════════════════════");
+            Console.WriteLine("    ĐO TỐC ĐỘ ĐỌC / GHI THỰC TẾ Ổ CỨNG (DISK SPEED BENCHMARK)");
+            Console.WriteLine("══════════════════════════════════════════════════════════════════");
+            Console.ResetColor();
+            Console.WriteLine("• Thử nghiệm ghi & đọc thực tế 128 MB dữ liệu ngẫu nhiên (chống nén lừa đảo).");
+            Console.WriteLine("• Giúp phát hiện:");
+            Console.WriteLine("  - Ổ cứng có đạt chuẩn tốc độ công bố không (NVMe vs SATA vs HDD)?");
+            Console.WriteLine("  - Phát hiện ổ cứng SSD nhái, chip nhớ phế liệu tái chế chạy chậm.");
+            Console.WriteLine("  - Ổ cứng có bị nghẽn I/O hay treo khi ghi tệp lớn không.");
+            Console.WriteLine();
+
+            string systemDrive = Path.GetPathRoot(Environment.SystemDirectory);
+            Console.Write(string.Format("👉 Chọn phân vùng ổ cứng cần kiểm tra [Mặc định: {0}]: ", systemDrive));
+            string driveInput = Console.ReadLine();
+            string targetDrive = string.IsNullOrEmpty(driveInput) ? systemDrive : driveInput.Trim();
+            if (!targetDrive.EndsWith("\\")) targetDrive += "\\";
+
+            try
+            {
+                DriveInfo dInfo = new DriveInfo(targetDrive);
+                long freeBytes = dInfo.AvailableFreeSpace;
+                if (freeBytes < 300L * 1024 * 1024)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("⚠ Dung lượng trống trên ổ " + targetDrive + " quá ít (< 300 MB). Không thể chạy benchmark.");
+                    Console.ResetColor();
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("⚠ Không thể truy cập ổ đĩa: " + ex.Message);
+                Console.ResetColor();
+                return;
+            }
+
+            string testFilePath = Path.Combine(targetDrive, "_pitvn_speed_test.tmp");
+            int totalMB = 128;
+            int bufferSize = 1024 * 1024; // 1 MB buffer
+            byte[] dummyData = new byte[bufferSize];
+            new Random().NextBytes(dummyData);
+
+            try
+            {
+                // 1. Test Ghi (Sequential Write)
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.Write("⏳ Đang thử nghiệm TỐC ĐỘ GHI liên tục 128 MB...");
+                Console.ResetColor();
+
+                Stopwatch swWrite = Stopwatch.StartNew();
+                using (FileStream fs = new FileStream(testFilePath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize, FileOptions.WriteThrough))
+                {
+                    for (int i = 0; i < totalMB; i++)
+                    {
+                        fs.Write(dummyData, 0, bufferSize);
+                    }
+                    fs.Flush();
+                }
+                swWrite.Stop();
+                double writeSec = swWrite.Elapsed.TotalSeconds;
+                double writeSpeedMBs = (writeSec > 0) ? (totalMB / writeSec) : 0;
+                Console.WriteLine(string.Format(" Hoàn tất trong {0:F2}s!", writeSec));
+
+                // 2. Test Đọc (Sequential Read)
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.Write("⏳ Đang thử nghiệm TỐC ĐỘ ĐỌC liên tục 128 MB...");
+                Console.ResetColor();
+
+                byte[] readBuffer = new byte[bufferSize];
+                Stopwatch swRead = Stopwatch.StartNew();
+                using (FileStream fs = new FileStream(testFilePath, FileMode.Open, FileAccess.Read, FileShare.None, bufferSize, FileOptions.SequentialScan))
+                {
+                    while (fs.Read(readBuffer, 0, bufferSize) > 0) { }
+                }
+                swRead.Stop();
+                double readSec = swRead.Elapsed.TotalSeconds;
+                double readSpeedMBs = (readSec > 0) ? (totalMB / readSec) : 0;
+                Console.WriteLine(string.Format(" Hoàn tất trong {0:F2}s!", readSec));
+
+                // Hiển thị kết quả
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine("══════════════════════════════════════════════════════════════════");
+                Console.WriteLine("          KẾT QUẢ ĐO TỐC ĐỘ Ổ CỨNG TRÊN PHÂN VÙNG " + targetDrive);
+                Console.WriteLine("══════════════════════════════════════════════════════════════════");
+                Console.ResetColor();
+                Console.WriteLine(string.Format("• Tốc độ Ghi liên tục (Sequential Write): {0:N1} MB/s", writeSpeedMBs));
+                Console.WriteLine(string.Format("• Tốc độ Đọc liên tục (Sequential Read) : {0:N1} MB/s", readSpeedMBs));
+                Console.WriteLine();
+
+                if (readSpeedMBs >= 1200.0 || writeSpeedMBs >= 1000.0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("👉 [ĐÁNH GIÁ: SIÊU TỐC] Ổ cứng chuẩn NVMe PCIe Gen 3/4/5 tốc độ rất cao!");
+                    Console.ResetColor();
+                }
+                else if (readSpeedMBs >= 400.0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("👉 [ĐÁNH GIÁ: CHUẨN] Ổ cứng chuẩn SSD SATA 3 tốc độ chuẩn tiêu chuẩn (~500 MB/s).");
+                    Console.ResetColor();
+                }
+                else if (readSpeedMBs >= 150.0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("👉 [ĐÁNH GIÁ: TRUNG BÌNH] Ổ cứng SSD SATA 2 hoặc SSD giá rẻ/bị suy hao tốc độ.");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("👉 [ĐÁNH GIÁ: CHẬM] Tốc độ tương đương ổ HDD cơ hoặc SSD kém chất lượng / lỗi chip.");
+                    Console.ResetColor();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("⚠ Lỗi trong quá trình đo tốc độ ổ cứng: " + ex.Message);
+                Console.ResetColor();
+            }
+            finally
+            {
+                try
+                {
+                    if (File.Exists(testFilePath)) File.Delete(testFilePath);
+                }
+                catch { }
+            }
+            Console.WriteLine();
+        }
+
+        static byte[] GenerateWavTone(int sampleRate, double frequency, double durationSec, bool leftChannel, bool rightChannel)
+        {
+            int numSamples = (int)(sampleRate * durationSec);
+            int subchunk2Size = numSamples * 2 * 2; // 2 channels, 16 bits = 4 bytes per sample
+            int chunkSize = 36 + subchunk2Size;
+
+            using (MemoryStream ms = new MemoryStream())
+            using (BinaryWriter bw = new BinaryWriter(ms))
+            {
+                // RIFF header
+                bw.Write(Encoding.ASCII.GetBytes("RIFF"));
+                bw.Write(chunkSize);
+                bw.Write(Encoding.ASCII.GetBytes("WAVE"));
+
+                // fmt subchunk
+                bw.Write(Encoding.ASCII.GetBytes("fmt "));
+                bw.Write(16); // Subchunk1Size for PCM
+                bw.Write((short)1); // AudioFormat (1 = PCM)
+                bw.Write((short)2); // NumChannels = 2 (Stereo)
+                bw.Write(sampleRate);
+                bw.Write(sampleRate * 2 * 2); // ByteRate
+                bw.Write((short)4); // BlockAlign
+                bw.Write((short)16); // BitsPerSample
+
+                // data subchunk
+                bw.Write(Encoding.ASCII.GetBytes("data"));
+                bw.Write(subchunk2Size);
+
+                for (int i = 0; i < numSamples; i++)
+                {
+                    double t = (double)i / sampleRate;
+                    double envelope = 1.0;
+                    if (i < 800) envelope = (double)i / 800.0;
+                    else if (i > numSamples - 800) envelope = (double)(numSamples - i) / 800.0;
+
+                    short sampleVal = (short)(Math.Sin(2.0 * Math.PI * frequency * t) * (short.MaxValue * 0.7) * envelope);
+
+                    short leftVal = leftChannel ? sampleVal : (short)0;
+                    short rightVal = rightChannel ? sampleVal : (short)0;
+
+                    bw.Write(leftVal);
+                    bw.Write(rightVal);
+                }
+
+                bw.Flush();
+                return ms.ToArray();
+            }
+        }
+
+        static void RunAudioStereoTest()
+        {
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("══════════════════════════════════════════════════════════════════");
+            Console.WriteLine("    KIỂM TRA ÂM THANH LOA TRÁI & PHẢI (STEREO SPEAKER TEST)");
+            Console.WriteLine("══════════════════════════════════════════════════════════════════");
+            Console.ResetColor();
+            Console.WriteLine("• Phát âm thanh cách ly kênh để kiểm tra độc lập từng bên loa laptop:");
+            Console.WriteLine("  - Bước 1: Chỉ phát âm thanh ra LOA TRÁI (Left Speaker - 440 Hz).");
+            Console.WriteLine("  - Bước 2: Chỉ phát âm thanh ra LOA PHẢI (Right Speaker - 880 Hz).");
+            Console.WriteLine("  - Bước 3: Phát âm thanh ra CẢ HAI LOA (Stereo Harmonic Chord).");
+            Console.WriteLine("• Giúp phát hiện: Loa bị tịt 1 bên, loa bị rè/rách màng khi âm lượng cao.");
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Write("👉 Vui lòng mở âm lượng máy tính khoảng 50-70%, nhấn Enter để BẮT ĐẦU...");
+            Console.ResetColor();
+            Console.ReadLine();
+
+            try
+            {
+                // Bước 1: Loa trái
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("🔊 [1/3] Đang phát âm thanh ra LOA TRÁI (LEFT)... Vui lòng lắng nghe!");
+                Console.ResetColor();
+                byte[] leftWav = GenerateWavTone(44100, 440.0, 2.5, true, false);
+                using (MemoryStream ms = new MemoryStream(leftWav))
+                using (SoundPlayer sp = new SoundPlayer(ms))
+                {
+                    sp.PlaySync();
+                }
+                Thread.Sleep(500);
+
+                // Bước 2: Loa phải
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("🔊 [2/3] Đang phát âm thanh ra LOA PHẢI (RIGHT)... Vui lòng lắng nghe!");
+                Console.ResetColor();
+                byte[] rightWav = GenerateWavTone(44100, 880.0, 2.5, false, true);
+                using (MemoryStream ms = new MemoryStream(rightWav))
+                using (SoundPlayer sp = new SoundPlayer(ms))
+                {
+                    sp.PlaySync();
+                }
+                Thread.Sleep(500);
+
+                // Bước 3: Cả hai loa
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("🔊 [3/3] Đang phát âm thanh ra CẢ HAI LOA (STEREO)...");
+                Console.ResetColor();
+                byte[] bothWav = GenerateWavTone(44100, 587.33, 2.5, true, true);
+                using (MemoryStream ms = new MemoryStream(bothWav))
+                using (SoundPlayer sp = new SoundPlayer(ms))
+                {
+                    sp.PlaySync();
+                }
+
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine("✔ Đã hoàn tất phát chuỗi âm thanh kiểm tra loa!");
+                Console.ResetColor();
+                Console.WriteLine("👉 Đánh giá:");
+                Console.WriteLine("   - Cả 2 bên đều nghe to rõ, không rè -> Loa hoàn hảo.");
+                Console.WriteLine("   - Một bên im bặt -> Đã đứt cáp loa hoặc hỏng màng loa bên đó.");
+                Console.WriteLine("   - Tiếng bị xè xè, rè khi âm thanh lớn -> Màng loa đã bị rách hoặc bám mạt sắt.");
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("⚠ Lỗi khi phát âm thanh: " + ex.Message);
+                Console.ResetColor();
+            }
+            Console.WriteLine();
+        }
+
+        static void RunBatteryChargeTest()
+        {
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("══════════════════════════════════════════════════════════════════");
+            Console.WriteLine("    KIỂM TRA TỐC ĐỘ NẠP/XẢ PIN & NGUỒN SẠC (BATTERY MONITOR)");
+            Console.WriteLine("══════════════════════════════════════════════════════════════════");
+            Console.ResetColor();
+
+            BatteryInfo bat = GetBattery();
+            if (!bat.HasBattery)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("⚠ Máy tính hiện tại là Desktop (Máy tính để bàn) hoặc không gắn pin.");
+                Console.ResetColor();
+                return;
+            }
+
+            Console.WriteLine(string.Format("• Dung lượng thiết kế gốc (Design)    : {0}", bat.DesignCapacity));
+            Console.WriteLine(string.Format("• Dung lượng sạc đầy hiện tại (Full)  : {0}", bat.CurrentCapacity));
+            Console.WriteLine(string.Format("• Tỷ lệ chai pin (Wear Level)         : {0}", bat.WearLevel));
+            Console.WriteLine(string.Format("• Số chu kỳ sạc (Cycle Count)         : {0}", bat.CycleCount >= 0 ? bat.CycleCount.ToString("N0") : "N/A"));
+            Console.WriteLine(string.Format("• Nguồn điện hiện tại                 : {0}", SystemInformation.PowerStatus.PowerLineStatus == PowerLineStatus.Online ? "🔌 Đang cắm sạc (AC Online)" : "🔋 Đang dùng Pin (Battery)"));
+            Console.WriteLine(string.Format("• Mức pin hiện tại                    : {0:P0}", SystemInformation.PowerStatus.BatteryLifePercent));
+            Console.WriteLine();
+
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("⏳ Đang theo dõi trạng thái dòng sạc/xả pin trong 5 giây...");
+            Console.ResetColor();
+
+            Thread.Sleep(5000);
+
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("══════════════════════════════════════════════════════════════════");
+            Console.WriteLine("        KẾT QUẢ ĐÁNH GIÁ PIN & CÔNG SUẤT BỘ SẠC");
+            Console.WriteLine("══════════════════════════════════════════════════════════════════");
+            Console.ResetColor();
+
+            if (SystemInformation.PowerStatus.PowerLineStatus == PowerLineStatus.Online)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("✔ Củ sạc kết nối ổn định (AC Adapter Online).");
+                Console.ResetColor();
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.DarkYellow;
+                Console.WriteLine("ℹ Máy đang dùng pin (Chưa cắm sạc). Hãy cắm sạc để kiểm tra khả năng nhận điện của củ sạc.");
+                Console.ResetColor();
+            }
+
+            double wearVal = 0;
+            if (bat.WearLevel != null && bat.WearLevel.Contains("%"))
+            {
+                double.TryParse(bat.WearLevel.Replace("%", "").Trim(), out wearVal);
+            }
+
+            if (wearVal < 20.0)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine(string.Format("👉 [ĐÁNH GIÁ PIN: RẤT TỐT] Pin còn giữ được {0:F1}% dung lượng gốc (Chai {1}).", 100.0 - wearVal, bat.WearLevel));
+                Console.ResetColor();
+            }
+            else if (wearVal <= 40.0)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine(string.Format("👉 [ĐÁNH GIÁ PIN: KHÁ] Pin chai ở mức chấp nhận được ({0}).", bat.WearLevel));
+                Console.ResetColor();
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(string.Format("👉 [CẢNH BÁO PIN: CHAI NẶNG] Pin đã chai {0}! Thời lượng pin sẽ sụt rất nhanh, nên trừ tiền thay pin mới.", bat.WearLevel));
+                Console.ResetColor();
+            }
+            Console.WriteLine();
+        }
+
+        static void ShowSoftwareDownloaderMenu()
+        {
+            List<SoftwareItem> tools = new List<SoftwareItem>();
+            tools.Add(new SoftwareItem(
+                "1",
+                "FurMark 2 (GPU Stress Test - Thử tải card màn hình & nguồn)",
+                "Ép card đồ họa rời chạy 100% công suất để kiểm tra nhiệt độ tản nhiệt, chống rác hình và sập nguồn.",
+                "https://sourceforge.net/projects/furmark/files/latest/download",
+                "FurMark_win64.zip",
+                "FurMark",
+                "*furmark*.exe",
+                false,
+                ""
+            ));
+            tools.Add(new SoftwareItem(
+                "2",
+                "CPUID HWMonitor (Soi nhiệt độ CPU/GPU, quạt, công suất W)",
+                "Đo nhiệt độ từng nhân vi xử lý, công suất tiêu thụ điện (Watt), xung nhịp, tốc độ quạt theo thời gian thực.",
+                "https://download.cpuid.com/hwmonitor/hwmonitor_1.56.zip",
+                "hwmonitor_1.56.zip",
+                "HWMonitor",
+                "*hwmonitor*.exe",
+                false,
+                ""
+            ));
+            tools.Add(new SoftwareItem(
+                "3",
+                "CrystalDiskInfo (Soi toàn diện S.M.A.R.T, Bad Sector, số giờ chạy)",
+                "Kiểm tra chi tiết sức khỏe ổ cứng SSD/HDD, số lần bật máy, tổng dung lượng TBW đã ghi và cảnh báo lỗi vàng/đỏ.",
+                "https://sourceforge.net/projects/crystaldiskinfo/files/latest/download",
+                "CrystalDiskInfo.zip",
+                "CrystalDiskInfo",
+                "*diskinfo*.exe",
+                false,
+                ""
+            ));
+            tools.Add(new SoftwareItem(
+                "4",
+                "CPUID CPU-Z (Xem chi tiết CPU, RAM Dual Channel & Benchmark nhanh)",
+                "Xem chi tiết vi kiến trúc CPU, kênh RAM Dual-Channel, tích hợp sẵn Benchmark CPU so sánh với chip top đầu.",
+                "https://download.cpuid.com/cpu-z/cpu-z_2.11-en.zip",
+                "cpu-z_2.11-en.zip",
+                "CPU-Z",
+                "*cpuz*.exe",
+                false,
+                ""
+            ));
+            tools.Add(new SoftwareItem(
+                "5",
+                "Cinebench (Maxon Cinebench R23 / 2024 - Render 3D CPU Benchmark)",
+                "Bài test render 3D tiêu chuẩn thế giới để kiểm tra sức mạnh thực tế của CPU.",
+                "",
+                "",
+                "Cinebench",
+                "",
+                true,
+                "https://www.maxon.net/en/cinebench"
+            ));
+
+            while (true)
+            {
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine("╔═══════════════════════════════════════════════════════════════════════╗");
+                Console.WriteLine("║    TRÌNH TẢI PHẦN MỀM TEST CHUYÊN DỤNG (PORTABLE - KHÔNG CẦN CÀI)    ║");
+                Console.WriteLine("╚═══════════════════════════════════════════════════════════════════════╝");
+                Console.ResetColor();
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("  [1] 🔥 FurMark 2 (GPU Stress Test - Thử tải card màn hình & nguồn - ~28 MB)");
+                Console.WriteLine("  [2] 🌡️  CPUID HWMonitor (Soi nhiệt độ CPU/GPU, quạt, công suất W - ~2 MB)");
+                Console.WriteLine("  [3] 💾 CrystalDiskInfo (Soi toàn diện S.M.A.R.T, Bad Sector - ~8 MB)");
+                Console.WriteLine("  [4] ⚡ CPUID CPU-Z (Xem chi tiết CPU, RAM Dual & Benchmark nhanh - ~3.5 MB)");
+                Console.WriteLine("  [5] 🎬 Cinebench (Xem hướng dẫn & Mở trang tải Cinebench chính thức)");
+                Console.WriteLine("  [6] 📦 TẢI TRỌN BỘ NHANH (Tải cả 3 công cụ nhẹ: CPU-Z + HWMonitor + CrystalDiskInfo)");
+                Console.WriteLine("  [0] ⬅️  Quay lại Menu chính");
+                Console.ResetColor();
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write("👉 Vui lòng chọn phần mềm muốn tải [0-6]: ");
+                Console.ResetColor();
+
+                string toolChoice = Console.ReadLine();
+                if (toolChoice == null) break;
+                toolChoice = toolChoice.Trim();
+
+                if (toolChoice == "0" || toolChoice.Equals("exit", StringComparison.OrdinalIgnoreCase))
+                {
+                    break;
+                }
+
+                if (toolChoice == "1") DownloadAndExtract(tools[0]);
+                else if (toolChoice == "2") DownloadAndExtract(tools[1]);
+                else if (toolChoice == "3") DownloadAndExtract(tools[2]);
+                else if (toolChoice == "4") DownloadAndExtract(tools[3]);
+                else if (toolChoice == "5")
+                {
+                    Console.WriteLine();
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine("══════════════════════════════════════════════════════════════════");
+                    Console.WriteLine("    HƯỚNG DẪN TẢI CINEBENCH (MAXON CINEBENCH R23 / 2024)");
+                    Console.WriteLine("══════════════════════════════════════════════════════════════════");
+                    Console.ResetColor();
+                    Console.WriteLine("• Cinebench R23/2024 có dung lượng khá lớn (~4.5 GB).");
+                    Console.WriteLine("• Khi đi test máy ở tiệm hoặc quán cà phê, bạn có 2 giải pháp tối ưu:");
+                    Console.WriteLine("  [1] Mở trang tải chính thức Maxon Cinebench trên trình duyệt.");
+                    Console.WriteLine("  [2] Dùng CPU-Z Benchmark (Có sẵn mục [4] trong tool, tải chỉ 3 MB, có sẵn điểm so sánh chuẩn).");
+                    Console.WriteLine();
+                    Console.Write("👉 Bạn có muốn MỞ TRANG TẢI CINEBENCH trên trình duyệt không? [Y/N] (Mặc định Y): ");
+                    string openAns = Console.ReadLine();
+                    if (string.IsNullOrEmpty(openAns) || openAns.Trim().ToUpper() == "Y")
+                    {
+                        try
+                        {
+                            Process.Start("https://www.maxon.net/en/cinebench");
+                            Console.WriteLine("✔ Đã mở trang tải Cinebench trên trình duyệt của bạn!");
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine("⚠ Không thể mở trình duyệt: " + ex.Message);
+                        }
+                    }
+                }
+                else if (toolChoice == "6")
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine("\n🚀 ĐANG BẮT ĐẦU TẢI TRỌN BỘ 3 CÔNG CỤ NHẸ (CPU-Z + HWMONITOR + CRYSTALDISKINFO)...");
+                    Console.ResetColor();
+                    DownloadAndExtract(tools[3]); // CPU-Z
+                    DownloadAndExtract(tools[1]); // HWMonitor
+                    DownloadAndExtract(tools[2]); // CrystalDiskInfo
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("\n🎉 ĐÃ TẢI XONG TRỌN BỘ CÔNG CỤ!");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("⚠ Lựa chọn không hợp lệ. Vui lòng nhập từ 0 đến 6.");
+                    Console.ResetColor();
+                }
+            }
+        }
+
+        static void DownloadAndExtract(SoftwareItem item)
+        {
+            if (item.IsExternalOnly) return;
+
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("══════════════════════════════════════════════════════════════════");
+            Console.WriteLine("  TẢI VỀ: " + item.Name);
+            Console.WriteLine("══════════════════════════════════════════════════════════════════");
+            Console.ResetColor();
+            Console.WriteLine("• " + item.Description);
+
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string toolsDir = Path.Combine(baseDir, "Tools_Test");
+            try
+            {
+                if (!Directory.Exists(toolsDir)) Directory.CreateDirectory(toolsDir);
+            }
+            catch
+            {
+                toolsDir = Path.Combine(Path.GetTempPath(), "Tools_Test_PITVN");
+                if (!Directory.Exists(toolsDir)) Directory.CreateDirectory(toolsDir);
+            }
+
+            string targetFolder = Path.Combine(toolsDir, item.FolderName);
+
+            // Kiểm tra xem đã có sẵn chưa
+            if (Directory.Exists(targetFolder))
+            {
+                string[] exes = Directory.GetFiles(targetFolder, item.ExeSearchPattern, SearchOption.AllDirectories);
+                if (exes.Length > 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("✔ Phần mềm đã có sẵn tại: " + exes[0]);
+                    Console.ResetColor();
+                    Console.Write("👉 Bạn có muốn KHỞI CHẠY NGAY không? [Y/N] (Mặc định Y): ");
+                    string ans = Console.ReadLine();
+                    if (string.IsNullOrEmpty(ans) || ans.Trim().ToUpper() == "Y")
+                    {
+                        try
+                        {
+                            Process.Start(exes[0]);
+                            Console.WriteLine("✔ Đã khởi chạy: " + Path.GetFileName(exes[0]));
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine("⚠ Không thể khởi chạy: " + ex.Message);
+                        }
+                    }
+                    return;
+                }
+            }
+
+            string zipPath = Path.Combine(toolsDir, item.FileName);
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("⏳ Đang kết nối máy chủ và tải gói Portable...");
+            Console.ResetColor();
+
+            try
+            {
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(item.DownloadUrl);
+                request.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+                request.Timeout = 60000;
+                request.AllowAutoRedirect = true;
+
+                using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
+                using (Stream stream = response.GetResponseStream())
+                using (FileStream fs = new FileStream(zipPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    long totalLength = response.ContentLength;
+                    byte[] buffer = new byte[65536];
+                    long totalRead = 0;
+                    int read;
+                    Stopwatch sw = Stopwatch.StartNew();
+                    long lastUpdate = 0;
+
+                    while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        fs.Write(buffer, 0, read);
+                        totalRead += read;
+
+                        if (sw.ElapsedMilliseconds - lastUpdate > 200 || (totalLength > 0 && totalRead >= totalLength))
+                        {
+                            lastUpdate = sw.ElapsedMilliseconds;
+                            double speedMBs = sw.ElapsedMilliseconds > 0 ? (totalRead / 1024.0 / 1024.0) / (sw.ElapsedMilliseconds / 1000.0) : 0;
+                            if (totalLength > 0)
+                            {
+                                double percent = (double)totalRead / totalLength * 100.0;
+                                int barWidth = 25;
+                                int filled = (int)(percent / 100.0 * barWidth);
+                                if (filled > barWidth) filled = barWidth;
+                                string bar = new string('█', filled) + new string('░', barWidth - filled);
+                                Console.Write(string.Format("\r   [{0}] {1,5:F1}% ({2:F1}/{3:F1} MB) @ {4:F2} MB/s", bar, percent, totalRead / 1024.0 / 1024.0, totalLength / 1024.0 / 1024.0, speedMBs));
+                            }
+                            else
+                            {
+                                Console.Write(string.Format("\r   Đã tải: {0:F1} MB @ {1:F2} MB/s", totalRead / 1024.0 / 1024.0, speedMBs));
+                            }
+                        }
+                    }
+                    Console.WriteLine();
+                }
+
+                // Giải nén
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("⏳ Đang giải nén tập tin vào thư mục: " + targetFolder + "...");
+                Console.ResetColor();
+
+                if (!Directory.Exists(targetFolder)) Directory.CreateDirectory(targetFolder);
+                ZipFile.ExtractToDirectory(zipPath, targetFolder);
+
+                try { File.Delete(zipPath); } catch {}
+
+                string[] foundExes = Directory.GetFiles(targetFolder, item.ExeSearchPattern, SearchOption.AllDirectories);
+                if (foundExes.Length > 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("✔ Đã tải và giải nén thành công: " + foundExes[0]);
+                    Console.ResetColor();
+                    Console.Write("👉 Bạn có muốn KHỞI CHẠY NGAY không? [Y/N] (Mặc định Y): ");
+                    string ans = Console.ReadLine();
+                    if (string.IsNullOrEmpty(ans) || ans.Trim().ToUpper() == "Y")
+                    {
+                        try
+                        {
+                            Process.Start(foundExes[0]);
+                            Console.WriteLine("✔ Đã khởi chạy: " + Path.GetFileName(foundExes[0]));
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine("⚠ Không thể khởi chạy: " + ex.Message);
+                        }
+                    }
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("✔ Đã giải nén vào thư mục: " + targetFolder);
+                    Console.ResetColor();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("⚠ Tải thất bại: " + ex.Message);
+                Console.WriteLine("   Mẹo: Bạn có thể mở trình duyệt để tải trực tiếp từ trang chủ của hãng.");
+                Console.ResetColor();
+            }
+            Console.WriteLine();
+        }
+
+        #endregion
 
         #region Hardware Verification Methods
         static CpuInfo GetAndVerifyCpu()
