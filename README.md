@@ -1,6 +1,6 @@
 # 🔍 Công Cụ Kiểm Tra Phần Cứng & Test Máy Cũ Chuyên Sâu (All-in-One Used PC Suite)
 
-> **Tác giả:** TanNhut (nhutcode) - PITVN Community  
+> **Tác giả:** TanNhut (nhutcode)  
 > **Nền tảng:** Windows 7 / 8 / 10 / 11 (32-bit & 64-bit)  
 > **Dung lượng:** ~68 KB (Độc lập 100%, không cần cài đặt, không cần phụ thuộc)
 
@@ -87,7 +87,3 @@ Mở Command Prompt hoặc chạy trực tiếp `build.bat`:
 
 ```cmd
 C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /optimize+ /codepage:65001 /r:System.Management.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.IO.Compression.FileSystem.dll /out:"check_hard.exe" "Program.cs"
-```
-
----
-*Phát triển và đóng gói bởi TanNhut (nhutcode) - PITVN Community.*
