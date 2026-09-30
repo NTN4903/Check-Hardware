@@ -252,23 +252,27 @@ namespace HardwareScanAgent
             try
             {
                 int threads = Environment.ProcessorCount;
-                int itersPerThread = 5000000;
+                long[] counts = new long[threads];
+                bool running = true;
                 Thread[] workers = new Thread[threads];
-                Stopwatch sw = Stopwatch.StartNew();
                 for (int i = 0; i < threads; i++)
                 {
+                    int idx = i;
                     workers[i] = new Thread(() => {
                         double a = 1.0001;
-                        for (int j = 0; j < itersPerThread; j++)
-                            a = a * 1.000001 + 0.000002;
+                        long c = 0;
+                        while (running) { a = a * 1.000001 + 0.000002; c++; }
+                        counts[idx] = c;
                     });
+                    workers[i].IsBackground = true;
                     workers[i].Start();
                 }
-                for (int i = 0; i < threads; i++) workers[i].Join();
-                sw.Stop();
-                double secs = sw.Elapsed.TotalSeconds;
-                if (secs <= 0.001) secs = 0.001;
-                return (long)((double)(threads * itersPerThread) / (secs * 10000.0));
+                Thread.Sleep(ms);
+                running = false;
+                for (int i = 0; i < threads; i++) { try { workers[i].Join(500); } catch { } }
+                long total = 0;
+                for (int i = 0; i < threads; i++) total += counts[i];
+                return total / 10000;
             }
             catch { return 0; }
         }
@@ -481,7 +485,7 @@ namespace HardwareScanAgent
             Console.WriteLine();
 
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("⏳ Đang quét phần cứng & kiểm định chống gian lận...");
+            Console.WriteLine("⏳ Đang quét phần cứng ...");
             Console.ResetColor();
             Console.WriteLine();
 
@@ -1491,10 +1495,11 @@ namespace HardwareScanAgent
             Console.WriteLine("• Throttling > 15% = Khô keo tản nhiệt hoặc quạt hỏng!");
             Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.Write("👉 Chọn thời gian stress test: [1] 15 giây  [2] 30 giây  (Mặc định 15s): ");
+            Console.Write("👉 Chọn thời gian stress test: [1] 15 giây  [2] 30 giây  [3] 60 giây  (Mặc định 15s): ");
             Console.ResetColor();
             string dChoice = Console.ReadLine();
-            int duration = (dChoice != null && dChoice.Trim() == "2") ? 30000 : 15000;
+            int duration = 15000;
+            if (dChoice != null) { string dc = dChoice.Trim(); if (dc == "2") duration = 30000; else if (dc == "3") duration = 60000; }
 
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine(string.Format("⏳ Đang chạy Benchmark nguội ({0}ms)...", 500));
